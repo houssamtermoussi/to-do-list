@@ -84,10 +84,14 @@ export default function App() {
       .order('inserted_at', { ascending: false })
 
     if (error) {
-      toast.error('Erreur lors du chargement des todos.')
-      console.error(error)
+      console.warn("Supabase fetch error, using localStorage:", error)
+      // Fallback vers localStorage
+      const localTodos = JSON.parse(localStorage.getItem('todos') || '[]')
+      setTodos(localTodos)
     } else {
       setTodos(data || [])
+      // Sauvegarde dans localStorage comme backup
+      localStorage.setItem('todos', JSON.stringify(data || []))
     }
     setTodosLoading(false)
   }
@@ -137,7 +141,9 @@ export default function App() {
         is_complete: false,
         inserted_at: new Date().toISOString()
       }
-      setTodos((prev) => [fallbackTodo, ...prev])
+      const newTodos = [fallbackTodo, ...todos]
+      setTodos(newTodos)
+      localStorage.setItem('todos', JSON.stringify(newTodos))
       setNewTask('')
       toast.success('Tâche ajoutée ! (Mode Local)')
     } else {
@@ -152,9 +158,9 @@ export default function App() {
   /** Bascule l'état complété d'un todo */
   async function toggleTodo(todo) {
     // Changement immédiat local pour réactivité optimale
-    setTodos((prev) =>
-      prev.map((t) => (t.id === todo.id ? { ...t, is_complete: !t.is_complete } : t))
-    )
+    const newTodos = todos.map((t) => (t.id === todo.id ? { ...t, is_complete: !t.is_complete } : t))
+    setTodos(newTodos)
+    localStorage.setItem('todos', JSON.stringify(newTodos))
 
     const { error } = await supabase
       .from('todos')
@@ -169,7 +175,9 @@ export default function App() {
   /** Supprime un todo */
   async function deleteTodo(id) {
     // Suppression immédiate locale
-    setTodos((prev) => prev.filter((t) => t.id !== id))
+    const newTodos = todos.filter((t) => t.id !== id)
+    setTodos(newTodos)
+    localStorage.setItem('todos', JSON.stringify(newTodos))
 
     const { error } = await supabase
       .from('todos')
@@ -178,6 +186,7 @@ export default function App() {
 
     if (error) {
       console.warn("Supabase delete warning (applied locally):", error)
+      toast.success('Tâche supprimée.')
     } else {
       toast.success('Tâche supprimée.')
     }
